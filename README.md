@@ -18,7 +18,7 @@
 *   **Obligor 360:** A unified, cross-engine entity search that aggregates an individual borrower's credit, fraud, and exposure risks into a single pane of glass.
 *   **Data Forge:** Synthetic data generation pipeline capable of rapidly seeding millions of rows of correlated, stressed financial data for backtesting.
 
-**Want to know exactly how the math and architecture work? Read our [Plain-English Guide (HOW_IT_WORKS.md)](HOW_IT_WORKS.md)**.
+Want to know exactly how the math and architecture work? [Read here](HOW_IT_WORKS.md).
 
 ## Architecture & Tech Stack
 
@@ -59,7 +59,7 @@ Start the FastAPI ASGI server using Uvicorn:
 uvicorn sentinel.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Then open your browser and navigate to: `https://sentinel-risk-platform.onrender.com/`
+Then open your browser and navigate to: [Sentinel](https://sentinel-risk-platform.onrender.com/)
 
 ## License
 
