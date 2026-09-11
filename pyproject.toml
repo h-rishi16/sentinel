@@ -1,52 +1,28 @@
 [project]
 name = "sentinel"
 version = "0.1.0"
-description = "An end-to-end quantitative financial risk intelligence platform"
-readme = "README.md"
+description = "Financial Risk Intelligence Platform"
 requires-python = ">=3.11"
-license = {text = "MIT"}
-
 dependencies = [
-    # Phase 1: Quantitative Foundation
     "numpy>=1.26",
     "scipy>=1.12",
     "pandas>=2.2",
     "yfinance>=0.2",
-    "pyarrow>=15.0",         # Parquet support
-    "statsmodels>=0.14",     # GARCH, statistical tests
-    "arch>=7.0",             # GARCH models
-    "scikit-learn>=1.4",     # Ledoit-Wolf, Logistic Regression
-    "xgboost>=2.0",          # Gradient boosted trees for PD models
+    "pyarrow>=15.0",
+    "statsmodels>=0.14",
+    "arch>=7.0",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+    "fastapi>=0.103.2",
+    "uvicorn>=0.23.2",
+    "sqlalchemy>=2.0",
+    "python-multipart>=0.0.6",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "mypy>=1.8",
+    "mypy>=1.9",
     "ruff>=0.3",
 ]
-
-[build-system]
-requires = ["setuptools>=69.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-include = ["sentinel*"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v --tb=short"
-
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP"]

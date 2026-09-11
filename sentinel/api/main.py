@@ -1169,7 +1169,11 @@ async def train_market(request: Request):
                 <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700"><div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase">Kupiec POF</div><div class="font-mono text-base {kupiec_color} font-bold">{kupiec_text}</div><div class="text-[9px] text-gray-400 dark:text-gray-500">p={k.p_value:.4f} | {k.actual_breaches}/{k.expected_breaches:.1f} breaches</div></div>
                 {es_html if es_html else f'<div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700"><div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase">Worst Loss Day</div><div class="font-mono text-base text-red-600">${risk_report.worst_loss*portfolio_value:,.0f}</div></div>'}
             </div>
-            <div class="grid grid-cols-4 gap-2">
+            <div class="mt-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+                <p class="font-bold text-gray-700 dark:text-gray-300 mb-1">Interpretation & Assumptions:</p>
+                <p class="text-gray-500 dark:text-gray-400">There is a <strong>{100 - confidence_level*100:.1f}% probability</strong> that the portfolio will lose more than <strong>${var_scaled:,.0f}</strong> over the next <strong>{time_horizon} trading day(s)</strong>, under the {res.method_name} distribution assumptions using random seed {random_seed}. The Expected Shortfall estimates that <em>if</em> this tail event occurs, the average loss would be <strong>${es_scaled:,.0f}</strong>.</p>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mt-3">
                 <div class="bg-blue-50/50 p-2 rounded border border-blue-100 text-center"><div class="text-[9px] text-blue-700 font-bold uppercase">Skewness</div><div class="font-mono text-sm {skew_color}">{risk_report.skewness:.3f}</div></div>
                 <div class="bg-blue-50/50 p-2 rounded border border-blue-100 text-center"><div class="text-[9px] text-blue-700 font-bold uppercase">Kurtosis</div><div class="font-mono text-sm text-gray-700 dark:text-gray-300">{risk_report.kurtosis:.3f}</div></div>
                 <div class="bg-blue-50/50 p-2 rounded border border-blue-100 text-center"><div class="text-[9px] text-blue-700 font-bold uppercase">Days Tested</div><div class="font-mono text-sm text-gray-700 dark:text-gray-300">{k.observations}</div></div>
@@ -1513,7 +1517,11 @@ async def run_volatility(request: Request):
                 </div>
             </div>
             <h4 class="font-bold text-[10px] text-gray-900 dark:text-white mb-2 uppercase tracking-wider">GARCH(1,{garch_q}) Parameters</h4>
-            <div class="grid grid-cols-4 gap-2">
+            <div class="mt-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+                <p class="font-bold text-gray-700 dark:text-gray-300 mb-1">Interpretation & Assumptions:</p>
+                <p class="text-gray-500 dark:text-gray-400">There is a <strong>{100 - confidence_level*100:.1f}% probability</strong> that the portfolio will lose more than <strong>${var_scaled:,.0f}</strong> over the next <strong>{time_horizon} trading day(s)</strong>, under the {res.method_name} distribution assumptions using random seed {random_seed}. The Expected Shortfall estimates that <em>if</em> this tail event occurs, the average loss would be <strong>${es_scaled:,.0f}</strong>.</p>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mt-3">
                 <div class="bg-purple-50/50 p-2 rounded border border-purple-100 text-center"><div class="text-[9px] text-purple-700 font-bold uppercase">ω (omega)</div><div class="font-mono text-sm">{omega:.6f}</div></div>
                 <div class="bg-purple-50/50 p-2 rounded border border-purple-100 text-center"><div class="text-[9px] text-purple-700 font-bold uppercase">α (shock)</div><div class="font-mono text-sm">{alpha:.4f}</div></div>
                 <div class="bg-purple-50/50 p-2 rounded border border-purple-100 text-center"><div class="text-[9px] text-purple-700 font-bold uppercase">β (persist)</div><div class="font-mono text-sm {persist_color}">{beta:.4f}</div></div>

@@ -20,6 +20,10 @@
 
 Want to know exactly how the math and architecture work? [Read here](HOW_IT_WORKS.md).
 
+## Limitations
+
+> **Synthetic Data Disclaimer:** Sentinel uses synthetic financial data for demonstration and testing purposes. Model performance should not be interpreted as production performance on real-world banking data. Synthetic data may contain assumptions and patterns that make prediction easier than in real financial environments.
+
 ## Architecture & Tech Stack
 
 Sentinel is built to prioritize accuracy, speed, and clean UX without relying on heavy frontend frameworks:
@@ -27,7 +31,7 @@ Sentinel is built to prioritize accuracy, speed, and clean UX without relying on
 *   **Backend:** Python 3, FastAPI, SQLAlchemy
 *   **Quantitative Modeling:** Pandas, Scikit-Learn, XGBoost, SciPy, Arch
 *   **Frontend:** HTMX (Server-Side UI rendering), Tailwind CSS (Dark Mode supported), Lucide Icons
-*   **Database:** SQLite (Embedded data cluster)
+*   **Database:** SQLite (Embedded relational database (Production path: PostgreSQL))
 
 ## Installation & Setup
 
