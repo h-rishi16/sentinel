@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import (
-    precision_recall_curve,
     average_precision_score,
     roc_auc_score,
 )
@@ -58,15 +57,15 @@ class FraudDetector:
         Automatically computes scale_pos_weight from the class distribution.
         """
         self.feature_names_ = list(X.columns)
-        
+
         # Compute class imbalance ratio
         n_legit = int((y == 0).sum())
         n_fraud = int((y == 1).sum())
         self.scale_pos_weight_ = n_legit / max(n_fraud, 1)
-        
+
         logger.info(f"Training fraud detector: {n_legit} legit, {n_fraud} fraud, "
                      f"scale_pos_weight={self.scale_pos_weight_:.1f}")
-        
+
         self.model = xgb.XGBClassifier(
             max_depth=self.max_depth,
             n_estimators=self.n_estimators,
@@ -92,19 +91,19 @@ class FraudDetector:
             Decision threshold for computing precision/recall.
         """
         probs = self.predict_proba(X)
-        
+
         roc = roc_auc_score(y, probs)
         pr = average_precision_score(y, probs)
-        
+
         # Precision and recall at the given threshold
         predictions = (probs >= threshold).astype(int)
         tp = int(((predictions == 1) & (y == 1)).sum())
         fp = int(((predictions == 1) & (y == 0)).sum())
         fn = int(((predictions == 0) & (y == 1)).sum())
-        
+
         precision = tp / max(tp + fp, 1)
         recall = tp / max(tp + fn, 1)
-        
+
         return FraudModelMetrics(
             roc_auc=float(roc),
             pr_auc=float(pr),

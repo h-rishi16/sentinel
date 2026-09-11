@@ -39,7 +39,6 @@ Covariance Matrix Estimation:
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -123,8 +122,8 @@ class PortfolioRiskMetrics:
 
     # Drawdown
     max_drawdown: float
-    max_drawdown_start: Optional[pd.Timestamp] = None
-    max_drawdown_end: Optional[pd.Timestamp] = None
+    max_drawdown_start: pd.Timestamp | None = None
+    max_drawdown_end: pd.Timestamp | None = None
 
     # Correlation extremes
     min_correlation: float = 0.0
@@ -331,7 +330,7 @@ def diversification_ratio(
 
 def maximum_drawdown(
     returns: pd.Series,
-) -> tuple[float, Optional[pd.Timestamp], Optional[pd.Timestamp]]:
+) -> tuple[float, pd.Timestamp | None, pd.Timestamp | None]:
     """
     Compute maximum drawdown from a return series.
 

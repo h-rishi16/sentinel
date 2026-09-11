@@ -21,7 +21,6 @@ from sentinel.quant.returns import (
     simple_returns,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures: Small, hand-verifiable datasets
 # ---------------------------------------------------------------------------

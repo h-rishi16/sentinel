@@ -9,11 +9,9 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-import numpy as np
 import pandas as pd
 
 from sentinel.quant.portfolio import PortfolioDefinition
-from sentinel.quant.returns import simple_returns
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +105,10 @@ def apply_hypothetical_scenario(
     for asset in portfolio.assets:
         weight = portfolio.weights[asset]
         shock_pct = scenario.get_shock_for_asset(asset)
-        
+
         asset_pnl = shock_pct
         asset_pnls[asset] = asset_pnl
-        
+
         port_pnl_pct += weight * asset_pnl
 
     return StressTestResult(
@@ -169,22 +167,22 @@ def historical_scenario_impact(
 
     # Calculate the normalized value of each asset (start at 1.0)
     normalized_prices = crisis_prices / crisis_prices.iloc[0]
-    
+
     # Calculate portfolio wealth over time
     wealth = normalized_prices.values @ portfolio.weight_array
     wealth = pd.Series(wealth, index=crisis_prices.index)
-    
+
     # Calculate max drawdown during this specific window
     running_max = wealth.cummax()
     drawdown = (wealth - running_max) / running_max
-    
+
     max_loss_pct = float(drawdown.min())
-    
+
     # Calculate what each asset did over the full window (peak to trough)
     # Using the portfolio's max drawdown dates
     trough_idx = drawdown.idxmin()
     peak_idx = wealth.loc[:trough_idx].idxmax()
-    
+
     asset_pnls = {}
     if len(crisis_prices) > 0:
         asset_rets = (crisis_prices.loc[trough_idx] / crisis_prices.loc[peak_idx]) - 1

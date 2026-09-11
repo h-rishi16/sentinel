@@ -17,22 +17,22 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 import xgboost as xgb
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
 
 class PDModel(ABC):
     """Abstract base class for Probability of Default models."""
-    
+
     @abstractmethod
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         """Train the model."""
         pass
-        
+
     @abstractmethod
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         """
@@ -40,7 +40,7 @@ class PDModel(ABC):
         Returns a 1D array of probabilities (0.0 to 1.0).
         """
         pass
-        
+
     @abstractmethod
     def get_feature_importance(self) -> dict[str, float]:
         """Return feature importance or coefficients."""
@@ -175,9 +175,9 @@ class ExpectedLossEngine:
     If not specified, all models receive the same input features.
     """
     def __init__(
-        self, 
-        pd_model: PDModel, 
-        lgd_model: LGDModel, 
+        self,
+        pd_model: PDModel,
+        lgd_model: LGDModel,
         ead_model: EADModel,
         pd_features: list[str] | None = None,
         lgd_features: list[str] | None = None,
@@ -189,7 +189,7 @@ class ExpectedLossEngine:
         self.pd_features = pd_features
         self.lgd_features = lgd_features
         self.ead_features = ead_features
-        
+
     def predict_expected_loss(self, X: pd.DataFrame, original_loan_amounts: pd.Series) -> pd.DataFrame:
         """
         Calculates EL = PD * LGD * (EAD_Factor * Original_Amount)
@@ -197,16 +197,16 @@ class ExpectedLossEngine:
         X_pd = X[self.pd_features] if self.pd_features else X
         X_lgd = X[self.lgd_features] if self.lgd_features else X
         X_ead = X[self.ead_features] if self.ead_features else X
-        
+
         # Predict the 3 components
         pd_preds = self.pd_model.predict_proba(X_pd)
         lgd_preds = self.lgd_model.predict(X_lgd)
         ead_factors = self.ead_model.predict(X_ead)
-        
+
         # Calculate EL
         predicted_ead_dollars = ead_factors * original_loan_amounts
         expected_loss_dollars = pd_preds * lgd_preds * predicted_ead_dollars
-        
+
         return pd.DataFrame({
             "PD": pd_preds,
             "LGD": lgd_preds,

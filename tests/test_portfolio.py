@@ -20,8 +20,7 @@ from sentinel.quant.portfolio import (
     portfolio_returns,
     portfolio_volatility,
 )
-from sentinel.quant.returns import log_returns, simple_returns
-
+from sentinel.quant.returns import simple_returns
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -10,7 +10,6 @@ These tests verify:
 6. Integration with real market data
 """
 
-import time
 
 import numpy as np
 import pandas as pd
@@ -18,20 +17,16 @@ import pytest
 
 from sentinel.quant.monte_carlo import (
     SimulationConfig,
-    SimulationResult,
     cholesky_decompose,
     simulate_from_historical,
     simulate_gbm,
 )
 from sentinel.quant.returns import log_returns
 from sentinel.quant.risk_measures import (
-    RiskMeasures,
-    VaRReport,
     compute_es,
     compute_risk_measures,
     compute_var,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

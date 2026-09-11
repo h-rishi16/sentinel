@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, Float, String, Boolean, ForeignKey
+from sqlalchemy import Column, Float, ForeignKey, Integer, String
+
 from sentinel.db.database import Base
+
 
 class Borrower(Base):
     __tablename__ = "borrowers"

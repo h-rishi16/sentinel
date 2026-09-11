@@ -59,24 +59,24 @@ def run_kupiec_pof_test(
     """
     if len(pnl) != len(var_predictions):
         raise ValueError("PnL and VaR predictions must have the same length.")
-    
+
     n = len(pnl)
     if n == 0:
         raise ValueError("Input arrays cannot be empty.")
-        
+
     p_expected = 1.0 - confidence_level
-    
+
     # A breach occurs when the actual loss is worse (more negative) than -VaR
     # (assuming VaR is expressed as a positive number)
     breaches = (pnl < -var_predictions).astype(int)
     x = int(np.sum(breaches))
-    
+
     p_observed = x / n
 
     # Log-likelihood of the null hypothesis (true failure rate = p_expected)
     # Using np.clip to prevent log(0) domain errors
     ll_null = (n - x) * np.log(max(1 - p_expected, 1e-10)) + x * np.log(max(p_expected, 1e-10))
-    
+
     # Log-likelihood of the alternative hypothesis (true failure rate = p_observed)
     if x == 0:
         ll_alt = n * np.log(1.0)
@@ -84,13 +84,13 @@ def run_kupiec_pof_test(
         ll_alt = n * np.log(1.0)
     else:
         ll_alt = (n - x) * np.log(1 - p_observed) + x * np.log(p_observed)
-        
+
     # The Likelihood Ratio statistic (clamped to 0 to prevent -0.0 from float arithmetic)
     lr_stat = max(-2.0 * (ll_null - ll_alt), 0.0)
-    
+
     # Kupiec LR stat follows a Chi-Square distribution with 1 degree of freedom
     p_value = 1.0 - stats.chi2.cdf(lr_stat, df=1)
-    
+
     return KupiecTestResult(
         confidence_level=confidence_level,
         observations=n,
@@ -142,7 +142,7 @@ def run_es_backtest(
     """
     # Identify breach days (losses > VaR)
     breaches = pnl < -var_predictions
-    
+
     if np.sum(breaches) < 2:
         # Not enough breaches to run a statistical t-test
         return ESBacktestResult(
@@ -152,19 +152,19 @@ def run_es_backtest(
             p_value=1.0,
             is_accepted=True
         )
-        
+
     actual_losses = -pnl[breaches]
     predicted_es = es_predictions[breaches]
-    
+
     # Residual = Actual Loss - Predicted Expected Shortfall
     # Positive residual means the model UNDER-predicted the severity of the crash.
     residuals = actual_losses - predicted_es
-    
+
     mean_res = float(np.mean(residuals))
-    
+
     # One-sample t-test against population mean = 0
     t_stat, p_val = stats.ttest_1samp(residuals, 0.0)
-    
+
     return ESBacktestResult(
         breach_count=len(residuals),
         mean_exceedance_residual=mean_res,
@@ -219,7 +219,7 @@ class RiskLimitsEngine:
             List of all limit breaches found. Empty if compliant.
         """
         breaches = []
-        
+
         for metric, actual in metrics.items():
             # Check upper limits (e.g., VaR shouldn't exceed X)
             if metric in self.upper_limits:
@@ -227,7 +227,7 @@ class RiskLimitsEngine:
                 if actual > limit:
                     severity = "Critical" if actual > (limit * self.critical_multiplier) else "Warning"
                     breaches.append(LimitBreach(metric, limit, actual, "Upper", severity))
-                    
+
             # Check lower limits (e.g., Diversification Ratio shouldn't fall below Y)
             if metric in self.lower_limits:
                 limit = self.lower_limits[metric]
@@ -235,5 +235,5 @@ class RiskLimitsEngine:
                     # For lower limits, critical means 20% *below* the limit
                     severity = "Critical" if actual < (limit / self.critical_multiplier) else "Warning"
                     breaches.append(LimitBreach(metric, limit, actual, "Lower", severity))
-                    
+
         return breaches

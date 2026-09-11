@@ -40,7 +40,6 @@ This was ~1000x slower. Our vectorized approach:
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -66,7 +65,7 @@ class SimulationConfig:
 
     n_simulations: int = 10_000
     time_horizon: int = 1
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
 
     def __post_init__(self) -> None:
         if self.n_simulations < 100:
@@ -168,7 +167,7 @@ def simulate_gbm(
     correlation_matrix: np.ndarray,
     weights: np.ndarray,
     config: SimulationConfig,
-    asset_names: Optional[list[str]] = None,
+    asset_names: list[str] | None = None,
 ) -> SimulationResult:
     """
     Run Monte Carlo simulation using Geometric Brownian Motion.

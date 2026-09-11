@@ -3,23 +3,21 @@ FastAPI Server for Sentinel.
 Exposes the core quantitative engines via high-throughput REST endpoints.
 """
 
+import io
+import json
 import logging
+import os
+import urllib.request
+import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, Request, Form, File, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
-from sqlalchemy.orm import Session
-import io
-import os
-import json
-import subprocess
-import sys
-import xml.etree.ElementTree as ET
-import urllib.request
 import pandas as pd
+from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, StreamingResponse
+from sqlalchemy.orm import Session
 
-from sentinel.db.database import get_db, engine, Base
-from sentinel.db.models import Transaction, Loan, Borrower
+from sentinel.db.database import Base, engine, get_db
+from sentinel.db.models import Borrower, Loan, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +25,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Initialize DB schema if it doesn't exist
     Base.metadata.create_all(bind=engine)
-    
+
     # Initialize meta.json if it doesn't exist
     meta_path = "sentinel.db.meta.json"
     if not os.path.exists(meta_path):
         with open(meta_path, "w") as f:
             json.dump({"type": "synthetic", "desc": "Default Seed (Medium | Normal Baseline | 0.2% Fraud)"}, f)
-    
+
     yield
 
 app = FastAPI(title="Sentinel Risk Intelligence API", lifespan=lifespan)
@@ -53,7 +51,7 @@ def get_base_html(content: str, active_tab: str, breadcrumb: str):
         ("generator", "cpu", "Data Forge", "Data Infrastructure"),
         ("importer", "upload-cloud", "Data Ingestion", "Data Infrastructure"),
     ]
-    
+
     nav_html = ""
     current_parent = "UNSET_PARENT"
     for id, icon, name, parent in tabs:
@@ -62,7 +60,7 @@ def get_base_html(content: str, active_tab: str, breadcrumb: str):
                 mt_class = "mt-6" if current_parent != "UNSET_PARENT" else "mt-2"
                 nav_html += f'<div class="px-3 {mt_class} mb-2 text-[10px] font-bold tracking-wider text-gray-400 dark:text-gray-500 uppercase">{parent}</div>'
             current_parent = parent
-            
+
         active_class = "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold" if active_tab == id else "text-gray-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:text-white"
         nav_html += f"""
             <div class="px-3">
@@ -74,7 +72,7 @@ def get_base_html(content: str, active_tab: str, breadcrumb: str):
 
     header_parent = breadcrumb.split(" > ")[0]
     header_child = breadcrumb.split(" > ")[1] if " > " in breadcrumb else ""
-    
+
     # We will compute the breadcrumb HTML in python to avoid f-string JS conflicts
     if header_child:
         breadcrumb_html = f'<span id="header-parent" class="">{header_parent}</span><i id="header-chevron" data-lucide="chevron-right" class="w-4 h-4 text-gray-300 dark:text-gray-600"></i><span id="header-child" class="text-gray-900 dark:text-white font-semibold">{header_child}</span>'
@@ -211,11 +209,11 @@ def get_ticker():
     for name, rate, change in rates:
         color = "text-green-600" if change.startswith("-") and name != "VIX" else "text-red-600" if change.startswith("+") else "text-gray-500 dark:text-gray-400"
         items.append(f'<span class="font-semibold text-gray-700 dark:text-gray-300">{name}</span> <span class="font-mono">{rate}</span> <span class="text-[10px] {color}">{change}</span>')
-    
+
     ticker_text = '<span class="mx-6 text-gray-300 dark:text-gray-600">|</span>'.join(items)
     # Adding a trailing separator for the seamless loop
     content_block = f'<div class="flex items-center shrink-0 pr-6">{ticker_text}<span class="mx-6 text-gray-300 dark:text-gray-600">|</span></div>'
-    
+
     return f"""
     <div class="flex animate-marquee text-xs w-max">
         {content_block}{content_block}
@@ -230,7 +228,7 @@ def view_home(request: Request, db: Session = Depends(get_db)):
     loan_sum = db.query(Loan).count() * 15000
     fico_avg = 698 # Mock average for speed
     tx_total = db.query(Transaction).count()
-    
+
     content = f"""
     <div class="mb-8">
         <h2 class="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Home</h2>
@@ -302,12 +300,18 @@ def get_news(topic: str):
         xml_data = urllib.request.urlopen(req, timeout=5).read()
         root = ET.fromstring(xml_data)
         for item in root.findall('./channel/item')[:5]:
-            title = item.find('title').text
-            link = item.find('link').text
-            pubDate = item.find('pubDate').text[:16]
+            t_el = item.find('title')
+            l_el = item.find('link')
+            p_el = item.find('pubDate')
+            if t_el is None or l_el is None or p_el is None:
+                continue
+            import html as py_html
+            title = py_html.escape(t_el.text)
+            link = py_html.escape(l_el.text)
+            pubDate = py_html.escape(p_el.text[:16])
             html += f'<li><a href="{link}" target="_blank" class="block group"><p class="text-[13px] font-medium text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 leading-snug">{title}</p><p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{pubDate}</p></a></li>'
-    except Exception as e:
-        html += f'<li class="text-xs text-red-500">Feed unavailable</li>'
+    except Exception:
+        html += '<li class="text-xs text-red-500">Feed unavailable</li>'
     return html + '</ul>'
 
 # --- 4. DATA INFRASTRUCTURE (Explorer, Generator, Importer) ---
@@ -318,7 +322,7 @@ def render_tx_row(t, edit_mode=False):
         <tr id="tx-row-{t.txn_id}" class="bg-blue-50/50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/50">
             <td class="py-2.5 px-4 text-xs font-mono text-gray-500 dark:text-gray-400">TXN-{t.txn_id:05d}</td>
             <td class="py-2 px-4"><input type="number" step="0.01" name="amount" value="{t.amount}" class="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"></td>
-            <td class="py-2 px-4"><input type="text" name="category" value="{t.category}" class="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-1 focus:ring-blue-500 outline-none"></td>
+            <td class="py-2 px-4"><input type="text" name="category" value="{__import__('html').escape(str(t.category))}" class="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-1 focus:ring-blue-500 outline-none"></td>
             <td class="py-2 px-4 text-xs text-gray-500 dark:text-gray-400">
                 <input type="number" name="day" value="{t.day}" class="w-12 px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded inline">
                 <input type="number" name="hour" value="{t.hour}" class="w-12 px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded inline">
@@ -334,7 +338,7 @@ def render_tx_row(t, edit_mode=False):
                 <button hx-get="/ui/widget/db/row/{t.txn_id}" hx-target="#tx-row-{t.txn_id}" hx-swap="outerHTML" class="text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 px-2 py-1 rounded border border-gray-200 dark:border-gray-700">CANCEL</button>
             </td>
         </tr>"""
-    
+
     fraud_badge = '<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 rounded text-[10px] font-bold border border-red-200 dark:border-red-800/50">FRAUD</span>' if t.is_fraud else '<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 rounded text-[10px] font-bold border border-green-200 dark:border-green-800/50">CLEAN</span>'
     return f"""
         <tr id="tx-row-{t.txn_id}" class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:bg-gray-800 transition-colors group">
@@ -355,10 +359,10 @@ def get_tx_page(page: int = 1, limit: int = 100, db: Session = Depends(get_db)):
     total_tx = db.query(Transaction).count()
     txs = db.query(Transaction).order_by(Transaction.txn_id.desc()).limit(limit).offset(offset).all()
     rows_html = "".join([render_tx_row(t) for t in txs])
-    
+
     prev_dis = "disabled" if page <= 1 else ""
     next_dis = "disabled" if (offset + limit) >= total_tx else ""
-    
+
     return f"""
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
@@ -412,7 +416,7 @@ async def update_tx_row(txn_id: int, request: Request, db: Session = Depends(get
             t.is_fraud = int(form.get("is_fraud", t.is_fraud))
             db.commit()
             db.refresh(t)
-        except:
+        except Exception:
             db.rollback()
     return render_tx_row(t, edit_mode=False) if t else ""
 
@@ -443,16 +447,16 @@ def view_database(request: Request, db: Session = Depends(get_db)):
     loan_count = db.query(Loan).count()
     borrower_count = db.query(Borrower).count()
     db_size = os.path.getsize("sentinel.db") / (1024 * 1024) if os.path.exists("sentinel.db") else 0
-    
+
     try:
-        with open("sentinel.db.meta.json", "r") as f:
+        with open("sentinel.db.meta.json") as f:
             meta = json.load(f)
             meta_desc = meta.get("desc", "Unknown Dataset")
-    except:
+    except Exception:
         meta_desc = "Legacy Dataset"
-        
+
     meta_badge = f'<div class="mt-3 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm w-fit"><i data-lucide="database" class="w-4 h-4 text-indigo-500"></i><span>Active Engine State:</span><span class="text-gray-900 dark:text-white font-semibold">{meta_desc}</span></div>'
-    
+
     content = f"""
     <div class="mb-6 flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4">
         <div class="flex-1">
@@ -619,14 +623,16 @@ async def generate_dataset(request: Request):
     f_type = "synthetic"
 
     try:
-        import subprocess, sys, json
+        import json
+        import subprocess
+        import sys
         subprocess.run([sys.executable, "scripts/seed_db.py", str(nb), str(nl), str(nt), str(fraud_rate), str(stress_val), str(skew), str(rates), str(f_type)], check=True)
         desc = f"{volume.capitalize()} Vol | {skew.capitalize()} Skew | {rates.capitalize()} Rates | {stress_str.capitalize()} Stress | {float(fraud_rate)*100}% Fraud"
         with open("sentinel.db.meta.json", "w") as f:
             json.dump({"type": "synthetic", "desc": desc}, f)
-        return f'<div class="px-4 py-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 text-indigo-800 dark:text-indigo-200 text-sm font-medium rounded-lg shadow-sm">Successfully generated! <button onclick="window.location.reload()" class="underline font-bold ml-2">Reload</button></div>'
-    except Exception as e:
-        return f'<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg shadow-sm">Error: {str(e)}</div>'
+        return '<div class="px-4 py-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 text-indigo-800 dark:text-indigo-200 text-sm font-medium rounded-lg shadow-sm">Successfully generated! <button onclick="window.location.reload()" class="underline font-bold ml-2">Reload</button></div>'
+    except Exception:
+        return '<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg shadow-sm">Error: An internal error occurred. Please check server logs.</div>'
 
 @app.post("/ui/api/db/upload", response_class=HTMLResponse)
 async def upload_dataset(target_table: str = Form(...), file: UploadFile = File(...)):
@@ -639,26 +645,29 @@ async def upload_dataset(target_table: str = Form(...), file: UploadFile = File(
         elif target_table == "transactions":
             if "Class" in df.columns: df.rename(columns={"Class": "is_fraud"}, inplace=True)
             if "Amount" in df.columns: df.rename(columns={"Amount": "amount"}, inplace=True)
-            
+
+        if target_table not in ["borrowers", "loans", "transactions"]:
+            return '<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Invalid table selected</div>'
+
         conn = sqlite3.connect("sentinel.db")
         existing_cols = pd.read_sql(f"PRAGMA table_info({target_table})", conn)['name'].tolist()
         cols_to_keep = [c for c in df.columns if c in existing_cols]
-        if not cols_to_keep: return f'<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Schema mismatch</div>'
-        
+        if not cols_to_keep: return '<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Schema mismatch</div>'
+
         df_filtered = df[cols_to_keep]
         rows = len(df_filtered)
         df_filtered.to_sql(target_table, conn, if_exists="append", index=False)
         conn.close()
-        
+
         try:
-            with open("sentinel.db.meta.json", "r") as f: current = json.load(f)["desc"]
+            with open("sentinel.db.meta.json") as f: current = json.load(f)["desc"]
             desc = current + f" + {rows} uploaded rows"
-        except: desc = f"Imported CSV into {target_table}"
+        except Exception: desc = f"Imported CSV into {target_table}"
         with open("sentinel.db.meta.json", "w") as f: json.dump({"type": "mixed", "desc": desc}, f)
-            
+
         return f'<div class="px-4 py-3 bg-green-50 dark:bg-green-900/30 text-green-700 text-sm font-medium rounded-lg shadow-sm">Successfully ingested {rows} rows. <button onclick="window.location.reload()" class="underline font-bold ml-2">Reload</button></div>'
-    except Exception as e:
-        return f'<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Error: {str(e)}</div>'
+    except Exception:
+        return '<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Error: An internal error occurred. Please check server logs.</div>'
 
 
 
@@ -775,9 +784,10 @@ async def train_fraud(request: Request, db: Session = Depends(get_db)):
     test_size = float(form.get("test_size", 0.2))
 
     import pandas as pd
-    from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
-    from sentinel.fraud.detector import FraudDetector
     from sklearn.model_selection import train_test_split
+
+    from sentinel.fraud.detector import FraudDetector
+    from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
 
     txns = pd.read_sql("SELECT * FROM transactions", engine.connect())
     if len(txns) < 50: return "<div class='text-red-500 font-bold'>Insufficient data. Seed database first.</div>"
@@ -791,12 +801,12 @@ async def train_fraud(request: Request, db: Session = Depends(get_db)):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, stratify=y)
         model = FraudDetector(max_depth=max_depth, n_estimators=n_estimators, learning_rate=learning_rate)
         model.fit(X_train, y_train)
-        
+
         metrics = model.evaluate(X_test, y_test, threshold=threshold)
         imp = model.get_feature_importance()
-        
+
         imp_html = "".join([f'<div class="flex justify-between text-xs mb-1"><span class="text-gray-600 dark:text-gray-400">{name}</span><span class="font-bold">{score:.4f}</span></div>' for name, score in sorted(imp.items(), key=lambda x: x[1], reverse=True)[:3]])
-            
+
         return f'''
         <div class="text-left w-full h-full animate-in fade-in zoom-in duration-300">
             <h4 class="font-bold text-gray-900 dark:text-white mb-2">Test Set Performance (n={len(X_test):,})</h4>
@@ -811,7 +821,7 @@ async def train_fraud(request: Request, db: Session = Depends(get_db)):
         </div>
         <script>lucide.createIcons();</script>
         '''
-    except Exception as e: return f"<div class='text-red-500 text-xs font-bold text-left'>{str(e)}</div>"
+    except Exception: return "<div class='text-red-500 text-xs font-bold text-left'>An internal error occurred. Please check server logs.</div>"
 
 # ==========================================
 # CREDIT UNDERWRITING ENGINE
@@ -922,9 +932,10 @@ async def train_credit(request: Request):
     lgd_ead_depth = int(form.get("lgd_ead_depth", 2))
 
     import pandas as pd
-    from sentinel.credit.models import XGBoostPDModel, LGDModel, EADModel, ExpectedLossEngine
+    from sklearn.metrics import brier_score_loss, roc_auc_score
     from sklearn.model_selection import train_test_split
-    from sklearn.metrics import roc_auc_score, brier_score_loss
+
+    from sentinel.credit.models import EADModel, ExpectedLossEngine, LGDModel, XGBoostPDModel
 
     try:
         loans = pd.read_sql("SELECT * FROM loans JOIN borrowers ON loans.borrower_id = borrowers.borrower_id", engine.connect())
@@ -953,14 +964,14 @@ async def train_credit(request: Request):
 
             ead_model = EADModel(max_depth=lgd_ead_depth)
             ead_model.fit(defaults[features], defaults["ead_factor"])
-            
+
             # 3. Calculate Expected Loss for the test set
             loss_engine = ExpectedLossEngine(pd_model, lgd_model, ead_model)
             el_df = loss_engine.predict_expected_loss(X_test, loans.loc[X_test.index, "loan_amount"])
             total_el = el_df["Expected_Loss"].sum()
-        
+
         imp_html = "".join([f'<div class="flex justify-between text-[10px] mb-1"><span class="text-gray-600 dark:text-gray-400">{name}</span><span class="font-bold">{score:.4f}</span></div>' for name, score in sorted(imp.items(), key=lambda x: x[1], reverse=True)[:3]])
-            
+
         return f"""
         <div class="text-left w-full h-full animate-in fade-in zoom-in duration-300 flex flex-col justify-between">
             <div>
@@ -978,7 +989,7 @@ async def train_credit(request: Request):
         </div>
         <script>lucide.createIcons();</script>
         """
-    except Exception as e: return f"<div class='text-red-500 text-xs font-bold text-left'>{str(e)}</div>"
+    except Exception: return "<div class='text-red-500 text-xs font-bold text-left'>An internal error occurred. Please check server logs.</div>"
 
 # ==========================================
 # MARKET RISK ANALYTICS ENGINE
@@ -1106,12 +1117,12 @@ async def train_market(request: Request):
     random_seed = int(form.get("random_seed", 42))
 
     try:
-        from sentinel.data.market import load_prices, forward_fill_prices
-        from sentinel.quant.portfolio import PortfolioDefinition
-        from sentinel.quant.rolling_backtest import run_rolling_backtest
-        from sentinel.quant.risk_measures import compute_risk_measures
-        from sentinel.quant.returns import simple_returns
         import numpy as np
+
+        from sentinel.data.market import forward_fill_prices, load_prices
+        from sentinel.quant.portfolio import PortfolioDefinition
+        from sentinel.quant.risk_measures import compute_risk_measures
+        from sentinel.quant.rolling_backtest import run_rolling_backtest
 
         prices = forward_fill_prices(load_prices())
         portfolio = PortfolioDefinition(weights={"SPY": 0.40, "AAPL": 0.30, "MSFT": 0.30})
@@ -1167,8 +1178,8 @@ async def train_market(request: Request):
         </div>
         <script>lucide.createIcons();</script>
         """
-    except Exception as e:
-        return f"<div class='text-red-500 text-xs font-bold text-left p-4 bg-red-50 dark:bg-red-900/30 rounded'>{str(e)}</div>"
+    except Exception:
+        return "<div class='text-red-500 text-xs font-bold text-left p-4 bg-red-50 dark:bg-red-900/30 rounded'>An internal error occurred. Please check server logs.</div>"
 
 # ==========================================
 # STRESS TESTING ENGINE
@@ -1275,9 +1286,14 @@ async def run_stress_test(request: Request):
     portfolio_value = float(form.get("portfolio_value", 1_000_000))
 
     try:
-        from sentinel.data.market import load_prices, forward_fill_prices
+        from sentinel.data.market import forward_fill_prices, load_prices
         from sentinel.quant.portfolio import PortfolioDefinition
-        from sentinel.quant.stress import Shock, Scenario, apply_hypothetical_scenario, historical_scenario_impact
+        from sentinel.quant.stress import (
+            Scenario,
+            Shock,
+            apply_hypothetical_scenario,
+            historical_scenario_impact,
+        )
 
         prices = forward_fill_prices(load_prices())
         portfolio = PortfolioDefinition(weights={"SPY": 0.40, "AAPL": 0.30, "MSFT": 0.30})
@@ -1334,7 +1350,7 @@ async def run_stress_test(request: Request):
         </div>
         <script>lucide.createIcons();</script>
         """
-    except Exception as e:
+    except Exception:
         import traceback
         return f"<div class='text-red-500 text-xs font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded'><pre>{traceback.format_exc()}</pre></div>"
 
@@ -1455,9 +1471,9 @@ async def run_volatility(request: Request):
     annualize = form.get("annualize", "true") == "true"
 
     try:
-        from sentinel.data.market import load_prices, forward_fill_prices
+        from sentinel.data.market import forward_fill_prices, load_prices
         from sentinel.quant.returns import simple_returns
-        from sentinel.quant.volatility import rolling_volatility, ewma_volatility, garch_volatility
+        from sentinel.quant.volatility import ewma_volatility, garch_volatility, rolling_volatility
 
         prices = forward_fill_prices(load_prices())
         if asset not in prices.columns:
@@ -1507,7 +1523,7 @@ async def run_volatility(request: Request):
         </div>
         <script>lucide.createIcons();</script>
         """
-    except Exception as e:
+    except Exception:
         import traceback
         return f"<div class='text-red-500 text-xs font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded'><pre>{traceback.format_exc()}</pre></div>"
 
@@ -1600,17 +1616,17 @@ async def search_customer_360(request: Request):
     raw_bid = form.get("borrower_id", "").strip()
     if not raw_bid:
         return "<div class='text-red-500 text-sm font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded-lg'>Error: Please provide a valid Borrower ID.</div>"
-    
+
     # DB expects integers, UI sometimes sends "B-0001"
     try:
         bid = int(raw_bid.replace("B-", "").replace("b-", ""))
     except ValueError:
         return f"<div class='text-red-500 text-sm font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded-lg'>Invalid ID format: {raw_bid}</div>"
-        
+
     try:
-        from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
+        from sentinel.credit.models import EADModel, ExpectedLossEngine, LGDModel, XGBoostPDModel
         from sentinel.fraud.detector import FraudDetector
-        from sentinel.credit.models import XGBoostPDModel, LGDModel, EADModel, ExpectedLossEngine
+        from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
 
         borr = pd.read_sql(f"SELECT * FROM borrowers WHERE borrower_id = {bid}", engine.connect())
         if len(borr) == 0:
@@ -1706,7 +1722,7 @@ async def search_customer_360(request: Request):
         </div>
         <script>lucide.createIcons();</script>
         """
-    except Exception as e:
+    except Exception:
         import traceback
         return f"<div class='text-red-500 text-xs font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded'><pre>{traceback.format_exc()}</pre></div>"
 
@@ -1823,37 +1839,4 @@ def view_importer(request: Request):
     """
     if "hx-request" in request.headers: return content
     return get_base_html(content, "importer", "Data Infrastructure > Data Ingestion")
-
-@app.post("/ui/api/db/upload", response_class=HTMLResponse)
-async def upload_dataset(target_table: str = Form(...), file: UploadFile = File(...)):
-    import sqlite3
-    try:
-        df = pd.read_csv(file.file)
-        if target_table == "loans":
-            if "loan_amnt" in df.columns: df.rename(columns={"loan_amnt": "loan_amount"}, inplace=True)
-            if "int_rate" in df.columns: df.rename(columns={"int_rate": "interest_rate"}, inplace=True)
-        elif target_table == "transactions":
-            if "Class" in df.columns: df.rename(columns={"Class": "is_fraud"}, inplace=True)
-            if "Amount" in df.columns: df.rename(columns={"Amount": "amount"}, inplace=True)
-            
-        conn = sqlite3.connect("sentinel.db")
-        existing_cols = pd.read_sql(f"PRAGMA table_info({target_table})", conn)['name'].tolist()
-        cols_to_keep = [c for c in df.columns if c in existing_cols]
-        if not cols_to_keep: return f'<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Schema mismatch</div>'
-        
-        df_filtered = df[cols_to_keep]
-        rows = len(df_filtered)
-        df_filtered.to_sql(target_table, conn, if_exists="append", index=False)
-        conn.close()
-        
-        try:
-            with open("sentinel.db.meta.json", "r") as f: current = json.load(f)["desc"]
-            desc = current + f" + {rows} uploaded rows"
-        except: desc = f"Imported CSV into {target_table}"
-        with open("sentinel.db.meta.json", "w") as f: json.dump({"type": "mixed", "desc": desc}, f)
-            
-        return f'<div class="px-4 py-3 bg-green-50 dark:bg-green-900/30 text-green-700 text-sm font-medium rounded-lg shadow-sm">Successfully ingested {rows} rows. <button onclick="window.location.reload()" class="underline font-bold ml-2">Reload</button></div>'
-    except Exception as e:
-        return f'<div class="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 text-xs rounded-lg">Error: {str(e)}</div>'
-
 
