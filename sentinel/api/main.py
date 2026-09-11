@@ -787,7 +787,10 @@ async def train_fraud(request: Request, db: Session = Depends(get_db)):
     from sklearn.model_selection import train_test_split
 
     from sentinel.fraud.detector import FraudDetector
-    from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
+    from sentinel.fraud.features import (
+        engineer_fraud_features,
+        get_fraud_feature_columns,
+    )
 
     txns = pd.read_sql("SELECT * FROM transactions", engine.connect())
     if len(txns) < 50: return "<div class='text-red-500 font-bold'>Insufficient data. Seed database first.</div>"
@@ -935,7 +938,12 @@ async def train_credit(request: Request):
     from sklearn.metrics import brier_score_loss, roc_auc_score
     from sklearn.model_selection import train_test_split
 
-    from sentinel.credit.models import EADModel, ExpectedLossEngine, LGDModel, XGBoostPDModel
+    from sentinel.credit.models import (
+        EADModel,
+        ExpectedLossEngine,
+        LGDModel,
+        XGBoostPDModel,
+    )
 
     try:
         loans = pd.read_sql("SELECT * FROM loans JOIN borrowers ON loans.borrower_id = borrowers.borrower_id", engine.connect())
@@ -1112,7 +1120,7 @@ async def train_market(request: Request):
     confidence_level = float(form.get("confidence_level", 0.95))
     window_size = int(form.get("window_size", 252))
     portfolio_value = float(form.get("portfolio_value", 1_000_000))
-    n_simulations = int(form.get("n_simulations", 5000))
+    _n_simulations = int(form.get("n_simulations", 5000))  # reserved for future MC engine
     time_horizon = int(form.get("time_horizon", 1))
     random_seed = int(form.get("random_seed", 42))
 
@@ -1477,7 +1485,11 @@ async def run_volatility(request: Request):
     try:
         from sentinel.data.market import forward_fill_prices, load_prices
         from sentinel.quant.returns import simple_returns
-        from sentinel.quant.volatility import ewma_volatility, garch_volatility, rolling_volatility
+        from sentinel.quant.volatility import (
+            ewma_volatility,
+            garch_volatility,
+            rolling_volatility,
+        )
 
         prices = forward_fill_prices(load_prices())
         if asset not in prices.columns:
@@ -1519,7 +1531,7 @@ async def run_volatility(request: Request):
             <h4 class="font-bold text-[10px] text-gray-900 dark:text-white mb-2 uppercase tracking-wider">GARCH(1,{garch_q}) Parameters</h4>
             <div class="mt-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
                 <p class="font-bold text-gray-700 dark:text-gray-300 mb-1">Interpretation & Assumptions:</p>
-                <p class="text-gray-500 dark:text-gray-400">There is a <strong>{100 - confidence_level*100:.1f}% probability</strong> that the portfolio will lose more than <strong>${var_scaled:,.0f}</strong> over the next <strong>{time_horizon} trading day(s)</strong>, under the {res.method_name} distribution assumptions using random seed {random_seed}. The Expected Shortfall estimates that <em>if</em> this tail event occurs, the average loss would be <strong>${es_scaled:,.0f}</strong>.</p>
+                <p class="text-gray-500 dark:text-gray-400">The GARCH(1,{garch_q}) model estimates long-run annualized volatility for this asset at <strong>{garch_latest*100:.2f}%</strong>. Persistence (alpha + beta = {persistence:.4f}) measures how long volatility shocks last. Values above 0.98 indicate highly persistent volatility clustering, meaning market turbulence tends to sustain itself.</p>
             </div>
             <div class="grid grid-cols-4 gap-2 mt-3">
                 <div class="bg-purple-50/50 p-2 rounded border border-purple-100 text-center"><div class="text-[9px] text-purple-700 font-bold uppercase">ω (omega)</div><div class="font-mono text-sm">{omega:.6f}</div></div>
@@ -1632,9 +1644,17 @@ async def search_customer_360(request: Request):
         return f"<div class='text-red-500 text-sm font-bold p-4 bg-red-50 dark:bg-red-900/30 rounded-lg'>Invalid ID format: {raw_bid}</div>"
 
     try:
-        from sentinel.credit.models import EADModel, ExpectedLossEngine, LGDModel, XGBoostPDModel
+        from sentinel.credit.models import (
+            EADModel,
+            ExpectedLossEngine,
+            LGDModel,
+            XGBoostPDModel,
+        )
         from sentinel.fraud.detector import FraudDetector
-        from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
+        from sentinel.fraud.features import (
+            engineer_fraud_features,
+            get_fraud_feature_columns,
+        )
 
         borr = pd.read_sql(f"SELECT * FROM borrowers WHERE borrower_id = {bid}", engine.connect())
         if len(borr) == 0:

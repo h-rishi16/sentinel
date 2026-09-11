@@ -78,9 +78,7 @@ def run_kupiec_pof_test(
     ll_null = (n - x) * np.log(max(1 - p_expected, 1e-10)) + x * np.log(max(p_expected, 1e-10))
 
     # Log-likelihood of the alternative hypothesis (true failure rate = p_observed)
-    if x == 0:
-        ll_alt = n * np.log(1.0)
-    elif x == n:
+    if x == 0 or x == n:
         ll_alt = n * np.log(1.0)
     else:
         ll_alt = (n - x) * np.log(1 - p_observed) + x * np.log(p_observed)

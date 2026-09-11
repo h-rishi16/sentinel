@@ -132,7 +132,6 @@ def cholesky_decompose(correlation_matrix: np.ndarray) -> np.ndarray:
     ValueError
         If the matrix is not symmetric or has incorrect diagonal.
     """
-    n = correlation_matrix.shape[0]
 
     # Validate symmetry
     if not np.allclose(correlation_matrix, correlation_matrix.T, atol=1e-8):

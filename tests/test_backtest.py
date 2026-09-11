@@ -42,7 +42,6 @@ class TestKupiecPOF:
 
     def test_terrible_model_rejected(self):
         """A model with 50 breaches when 10 were expected should be rejected."""
-        n = 1000
         conf = 0.99
 
         pnl_breach = np.full(50, -20.0)
@@ -62,7 +61,6 @@ class TestKupiecPOF:
 
     def test_overly_conservative_model_rejected(self):
         """A model with 0 breaches when 50 were expected should also be rejected."""
-        n = 1000
         conf = 0.95  # Expect 50 breaches
 
         # 0 breaches

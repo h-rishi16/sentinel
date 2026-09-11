@@ -1,0 +1,19 @@
+# Ruff Configuration for Sentinel
+# https://docs.astral.sh/ruff/
+
+[lint]
+# Rules to ignore globally:
+# E501 - Line too long: unavoidable with inline HTML f-strings in main.py
+# N803/N806 - Non-lowercase variable names: sklearn convention uses X, y
+# E741 - Ambiguous variable name: math convention (I = identity matrix, L = lower triangular)
+# B008 - Function call in default argument: FastAPI's Depends() pattern requires this
+# BLE001 - Blind exception catch: acceptable in example scripts
+# PIE790 - Unnecessary pass: used as explicit placeholder in abstract-style base classes
+# ASYNC230/ASYNC221 - Blocking calls in async: accepted for now (SQLite + file I/O)
+ignore = ["E501", "N803", "N806", "E741", "B008", "BLE001", "PIE790", "ASYNC230", "ASYNC221"]
+
+[lint.per-file-ignores]
+# Example scripts have relaxed rules
+"examples/*" = ["I001", "RUF059", "RUF010"]
+# Test files use sklearn conventions and documentary variables
+"tests/*" = ["N803", "N806"]

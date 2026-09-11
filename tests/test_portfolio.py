@@ -312,7 +312,7 @@ class TestMaximumDrawdown:
             [0.20, -0.25, 0.2222],
             index=pd.date_range("2024-01-01", periods=3, freq="B"),
         )
-        max_dd, peak, trough = maximum_drawdown(simple_rets)
+        max_dd, _peak, _trough = maximum_drawdown(simple_rets)
         np.testing.assert_almost_equal(max_dd, -0.25, decimal=4)
 
     def test_no_drawdown_for_monotonic_increase(self) -> None:

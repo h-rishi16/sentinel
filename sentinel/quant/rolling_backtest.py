@@ -13,8 +13,16 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from sentinel.quant.backtest import ESBacktestResult, KupiecTestResult, run_kupiec_pof_test
-from sentinel.quant.portfolio import PortfolioDefinition, covariance_matrix, portfolio_volatility
+from sentinel.quant.backtest import (
+    ESBacktestResult,
+    KupiecTestResult,
+    run_kupiec_pof_test,
+)
+from sentinel.quant.portfolio import (
+    PortfolioDefinition,
+    covariance_matrix,
+    portfolio_volatility,
+)
 from sentinel.quant.returns import simple_returns
 
 logger = logging.getLogger(__name__)

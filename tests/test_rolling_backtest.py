@@ -5,7 +5,11 @@ import numpy as np
 import pandas as pd
 
 from sentinel.quant.portfolio import PortfolioDefinition
-from sentinel.quant.rolling_backtest import historical_var, parametric_var, run_rolling_backtest
+from sentinel.quant.rolling_backtest import (
+    historical_var,
+    parametric_var,
+    run_rolling_backtest,
+)
 
 
 def test_parametric_var():

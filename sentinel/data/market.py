@@ -31,7 +31,7 @@ def fetch_prices(
     tickers: list[str],
     start: str,
     end: str,
-    data_dir: Optional[Path] = None,
+    data_dir: Path | None = None,
     save: bool = True,
 ) -> pd.DataFrame:
     """
@@ -170,7 +170,7 @@ def validate_prices(
     return {"critical_errors": errors, "warnings": warnings, "stats": stats}
 
 
-def load_prices(data_dir: Optional[Path] = None) -> pd.DataFrame:
+def load_prices(data_dir: Path | None = None) -> pd.DataFrame:
     """Load previously saved price data from Parquet."""
     if data_dir is None:
         data_dir = DEFAULT_DATA_DIR

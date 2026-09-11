@@ -4,7 +4,11 @@ Tests for sentinel.fraud (features + detector).
 
 import numpy as np
 
-from sentinel.data.generator import GeneratorConfig, generate_borrowers, generate_transactions
+from sentinel.data.generator import (
+    GeneratorConfig,
+    generate_borrowers,
+    generate_transactions,
+)
 from sentinel.fraud.detector import FraudDetector
 from sentinel.fraud.features import engineer_fraud_features, get_fraud_feature_columns
 
